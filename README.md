@@ -4,7 +4,7 @@
 
 Para trabajar sobre esta base, tienen que hacer un fork de este repositorio y trabajar sobre él.
 
-Únicamente modifiquen el archivo Practica03.hs que se encuentra en el directorio src. Si quieren modificar las pruebas o agregar más, pueden preguntarme con confianza y les explico como modificarlas.
+Únicamente modifiquen el archivo Practica04.hs que se encuentra en el directorio src. Si quieren modificar las pruebas o agregar más, pueden preguntarme con confianza y les explico como modificarlas.
 
 Deben tener instalado el compilador de Haskell para poder probar su práctica. Para ello deben colocarse en el directorio src y ejecutar el comando `ghci Practica04.hs`.
 
