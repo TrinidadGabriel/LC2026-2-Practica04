@@ -131,11 +131,64 @@ sep _ estado = (estado, estado)                                                 
 
 --Ejercicio 1
 heuristicsLiteral :: [Clausula] -> Literal
-heuristicsLiteral = undefined
+heuristicsLiteral cs = buscarMax (contarLiterales (aplanar cs))                 --Primero toma las cláusulas cs y las aplana. Luego cuenta cuántas veces aparece cada literal en esa lista plana. Finalmente, busca el máximo de esos conteos.
+
+  where
+    -- Convierte la lista de listas en una sola lista larga
+    aplanar [] = []                                                             --Si la lista principal está vacía, devuelve vacío.
+    aplanar (c:resto) = c ++ (aplanar resto)                                    --Si tiene cláusulas, toma la primera cláusula c y la concatena con el resultado de aplanar el resto.
+
+    -- Cuenta cuántas veces aparece cada literal
+    contarLiterales [] = []
+    contarLiterales (l:ls) = (l, 1 + contar l ls): contarLiterales (quitar l ls)    --Toma el primer literal de la lista (l). Usa la función contar para ver cuántas veces más aparece ese mismo literal en el resto de la lista, y le suma 1 (por el que tenemos).
+    
+    contar _ [] = 0
+    contar x (y:ys) = if x == y then 1 + contar x ys else contar x ys           --Recorre la lista. Si el elemento y es igual al que buscamos x, suma 1. Si no, sigue buscando.
+    
+    quitar _ [] = []
+    quitar x (y:ys) = if x == y then quitar x ys else y : quitar x ys           --Recorre la lista. Si encuentra a nuestro elemento x, lo ignora (lo elimina). Si es distinto, lo conserva y sigue avanzando.
+
+    -- Busca el que tenga el número mayor en la lista contada
+    buscarMax [] = Var "error"                                                  --Un caso de error por si le pasamos una lista vacía.
+    buscarMax [(l, _)] = l                                                      --Caso base. Si en la lista ya solo queda uno. Devolvemos su letra l.
+    buscarMax ((l1, n1):(l2, n2):resto) =                                       --Toma a las dos primeros literales de la lista. l1 con su puntuación n1, y l2 con su puntuación n2. El resto espera su turno.
+        if n1 >= n2                                                             --Si la primera literal tiene más o los mismas repeticiones que la segunda literal , la segunda literal queda eliminado. 
+        then buscarMax ((l1, n1):resto)                                         --Hacemos recursión volviendo a meter a la primera literal a comparar con el resto.
+        else buscarMax ((l2, n2):resto)                                         --Hacemos recursión volviendo a meter a la segunda lieteral a comparar con el resto. Y la primera es eliminada
 
 --EJERCICIO 2
 dpll :: [Clausula] -> Interpretacion
-dpll = undefined
+dpll c = solve (Node ([], c) Void)                                              --Arrancamos nuestra función interna solve. Le damos el punto de partida: un Node cuyo estado inicial tiene un diccionario vacío [] y las cláusulas c originales.
+  where
+    -- Caso 1: Si llegamos a un hueco en el árbol, regresamos vacío
+    solve Void = []                                                             --Si solve llega a un Void, significa que este camino no sirvió. Regresa una lista vacía [], que es nuestra señal de "fracaso" en esta ruta.
+    
+    -- Caso 2: Procesar un Nodo
+    solve (Node (i,cs) arbol) =                                                    --Si estamos en un Node, extraemos su estado est.
+        if success (i,cs)                                                       --Primero pregunta si fue exitoso. 
+        then i                                                                  --Si es así, extraemos la interpretación final y terminamos.
+        else if conflict (i,cs)                                                 --Si no, preguntamos si hubo un error y calusula vacia (conflict est). 
+        then []                                                                 --Si es así, devolvemos [] indicando que este camino fracasó.
+        else procesarSimplificacion (i,cs) (red (elim (unit (i,cs))))                 --Si no fracaso pero tampoco fue exito. Tomamos el estado: primero unit, luego elim y luego red. El resultado de esto junto con el Estado Viejo (est) se lo pasamos a procesarSimplificacion.
+    
+    -- Caso 3: Procesar una Ramificación (Branch)
+    solve (Branch est izq der) =                                                --Si estamos en un Branch, tenemos un camino izquierdo izq y uno derecho der.
+        if solve izq == []                                                      --Mandamos a resolver el camino izquierdo (solve izq). Si el resultado es vacío (fracasó)
+        then solve der                                                          --Entonces nos pasamos con el camino derecho (solve der).
+        else solve izq                                                          --Pero si el izquierdo no está vacío, nos quedamos con esa respuesta.
+    
+    -- Esta función decide si ramificar o seguir simplificando
+    procesarSimplificacion estViejo (iNuevo, csNuevo) =                                  --Recibe cómo estaba el problema antes de red (elim (unit...)) y cómo quedó después.
+        if estViejo == (iNuevo, csNuevo)                                        --Si son iguales, significa que nuestras reglas lógicas se atascaron. No pudieron deducir nada nuevo.
+        then bifurcar (iNuevo, csNuevo) (heuristicsLiteral csNuevo)             --Llamamos a bifurcar, pasándole la variable más repetida usando nuestra función heuristicsLiteral.
+        else solve (Node (iNuevo, csNuevo) Void)                                --Si no son iguales, significa que las reglas lógicas sí lograron encoger el problema. Así que volvemos a llamar a solve creando un nuevo Node con el problema encogido para que vuelva a dar otra vuelta.
+        
+    
+    -- Construye el branch
+    bifurcar est l = crearRamas est (sep l est)                                 --bifurcar llama a sep pasándole la variable l para crear los dos estados paralelos. 
+    
+    crearRamas est (eIzq, eDer) = 
+        solve (Branch est (Node eIzq Void) (Node eDer Void))                    --recibe la tupla y la parte automáticamente en eIzq y eDer, usándolos para construir el Branch con sus dos hijos.
 
 --EXTRA
 dpll2 :: Prop -> Interpretacion
